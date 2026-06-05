@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabMaster 3000 Inmediato</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: #f1f5f9; color: #1e293b; min-height: 100vh; display: flex; flex-direction: column; padding: 10px; }
+        
+        header { background-color: #4f46e5; color: #ffffff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 10px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        
+        .progress-container { width: 100%; background-color: #3730a3; height: 10px; border-radius: 5px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background-color: #10b981; transition: width 0.3s; }
+        .progress-text { font-size: 11px; font-weight: bold; margin-top: 4px; display: block; text-align: right; color: #e0e7ff; }
+
+        main { max-width: 400px; width: 100%; margin: 0 auto; flex-grow: 1; display: flex; flex-direction: column; }
+        .filter-box { background: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; display: flex; gap: 8px; }
+        select, input { width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
+        .btn-reset { background: #fff; border: 1px solid #cbd5e1; color: #ef4444; font-size: 11px; padding: 0 8px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        .flip-card { background-color: transparent; perspective: 1000px; width: 100%; height: 420px; cursor: pointer; margin-bottom: 15px; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.4s; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .front, .back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.04); }
+        .front { background-color: #ffffff; }
+        .back { background-color: #0f172a; color: #ffffff; transform: rotateY(180deg); }
+        
+        .image-container { width: 85px; height: 85px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.05); }
+        .image-container svg { width: 42px; height: 42px; }
+
+        .badge { font-size: 9px; font-weight: bold; text-transform: uppercase; background: #eeebff; color: #4f46e5; padding: 2px 8px; border-radius: 20px; align-self: flex-start; }
+        .word-title { font-size: 28px; font-weight: 800; color: #1e293b; line-height: 1.2; }
+        .ipa-text { color: #94a3b8; font-family: monospace; font-size: 12px; margin-bottom: 6px; }
+        .trans-title { font-size: 26px; font-weight: 700; color: #2dd4bf; }
+        
+        .examples-container { width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+        .ex-box { background: #f8fafc; border-left: 4px solid #6366f1; padding: 8px 10px; border-radius: 4px 8px 8px 4px; }
+        .ex-box-back { background: rgba(30, 41, 59, 0.7); border-left: 4px solid #2dd4bf; padding: 8px 10px; border-radius: 4px 8px 8px 4px; border-top: 1px solid #334155; }
+        .lbl-side { font-size: 8px; color: #94a3b8; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 1px; }
+        .txt-en { font-size: 12px; font-style: italic; color: #334155; line-height: 1.3; }
+        .txt-es { font-size: 12px; color: #e2e8f0; line-height: 1.3; }
+
+        .controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: auto; }
+        .btn-nav { background: #ffffff; border: 1px solid #cbd5e1; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #475569; cursor: pointer; }
+        .counter { background: #cbd5e1; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 20px; color: #1e293b; }
+        .status-btn { font-size: 11px; padding: 5px 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #fff; font-weight: bold; cursor: pointer; }
+        .status-btn.mastered { background: #064e3b; color: #a7f3d0; border-color: #065f46; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <h3>VocabMaster 3000</h3>
+            <span id="numeric-progress" style="font-size: 12px; font-weight: bold;">0 / 3000</span>
+        </div>
+        <div class="progress-container">
+            <div id="progress-bar-fill" class="progress-bar"></div>
+        </div>
+        <span id="percentage-text" class="progress-text">Progreso Real: 0%</span>
+    </header>
+
+    <main>
+        <div class="filter-box">
+            <input type="text" id="search-input" oninput="applyFilters()" placeholder="Buscar palabra o traducción...">
+            <select id="filter-level" onchange="applyFilters()">
+                <option value="all">Todos los Niveles</option>
+                <option value="Principiante">Principiante (1-1000)</option>
+                <option value="Intermedio">Intermedio (1001-2000)</option>
+                <option value="Avanzado">Avanzado (2001-3000)</option>
+            </select>
+            <button onclick="resetApp()" class="btn-reset">Reset</button>
+        </div>
+
+        <section id="study-section">
+            <div class="flip-card" id="flashcard" onclick="toggleFlip()">
+                <div class="flip-card-inner">
+                    
+                    <div class="front">
+                        <span id="card-level-front" class="badge">-</span>
+                        <div style="display:flex; flex-direction:column; align-items:center; width:100%;">
+                            <div class="image-container" id="svg-graphic-container"></div>
+                            <h2 id="card-word" class="word-title">-</h2>
+                            <p id="card-ipa" class="ipa-text">-</p>
+                        </div>
+                        
+                        <div class="examples-container">
+                            <div class="ex-box">
+                                <span class="lbl-side">Example 1</span>
+                                <p id="card-ex1-en" class="txt-en">-</p>
+                            </div>
+                            <div class="ex-box">
+                                <span class="lbl-side">Example 2</span>
+                                <p id="card-ex2-en" class="txt-en">-</p>
+                            </div>
+                        </div>
+                        <p style="font-size:10px; color:#94a3b8;">👇 Toca para ver traducción</p>
+                    </div>
+
+                    <div class="back">
+                        <span style="font-size:9px; color:#94a3b8; align-self:flex-start;">Significado</span>
+                        <div style="width:100%;">
+                            <h3 id="card-translation" class="trans-title">-</h3>
+                        </div>
+                        
+                        <div class="examples-container">
+                            <div class="ex-box-back">
+                                <span class="lbl-side" style="color:#2dd4bf;">Traducción 1</span>
+                                <p id="card-ex1-es" class="txt-es">-</p>
+                            </div>
+                            <div class="ex-box-back">
+                                <span class="lbl-side" style="color:#2dd4bf;">Traducción 2</span>
+                                <p id="card-ex2-es" class="txt-es">-</p>
+                            </div>
+                        </div>
+
+                        <div style="width:100%; display:flex; justify-content:space-between; align-items:center;" onclick="event.stopPropagation();">
+                            <span style="font-size:11px; color:#94a3b8;">¿Aprendida?</span>
+                            <button id="mastered-btn" onclick="toggleMastered()" class="status-btn">-</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="controls">
+                <button onclick="prevCard()" class="btn-nav">‹</button>
+                <span id="card-index-indicator" class="counter">0 / 0</span>
+                <button onclick="nextCard()" class="btn-nav">›</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Paletas de colores dinámicas para los iconos alusivos
+        const bgColors = ["#e0e7ff", "#d1fae5", "#fef3c7", "#fee2e2", "#e0f2fe", "#f3e8ff"];
+        const fillColors = ["#4f46e5", "#059669", "#d97706", "#dc2626", "#0284c7", "#9333ea"];
+
+        // Catálogo nativo de gráficos vectoriales alusivos
+        const svgIcons = [
+            "<svg viewBox='0 0 24 24'><path d='M6.5 18.5a4.5 4.5 0 0 1-1.25-8.83A6 6 0 0 1 17 9.5a5.5 5.5 0 0 1 1 10.91z'/></svg>", // Naturaleza
+            "<svg viewBox='0 0 24 24'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg>", // Hogar
+            "<svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>", // Tiempo
+            "<svg viewBox='0 0 24 24'><rect x='1' y='11' width='22' height='6' rx='2'/><path d='M5 11l1.5-4.5h11L19 11'/><circle cx='6' cy='19' r='2'/><circle cx='18' cy='19' r='2'/></svg>", // Viajes
+            "<svg viewBox='0 0 24 24'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/></svg>", // Libros
+            "<svg viewBox='0 0 24 24'><path d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z'/></svg>", // Trabajo
+            "<svg viewBox='0 0 24 24'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>", // Ojo/Visión
+            "<svg viewBox='0 0 24 24'><path d='M9 21h6v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z'/></svg>", // Ideas
+            "<svg viewBox='0 0 24 24'><path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/></svg>", // Burbuja de chat
+            "<svg viewBox='0 0 24 24'><path d='M12 2a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm0 12c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z'/></svg>" // Persona
+        ];
+
+        // Diccionario Semilla Real del Inglés Americano de Alta Frecuencia (Vocabulario Esencial)
+        const coreDictionary = [
+            ["the","el/la/los/las","/ðə/","The sun is shining bright today.","I need the keys from the table.","El sol está brillando fuerte hoy.","Necesito las llaves de la mesa."],
+            ["time","tiempo/hora","/taɪm/","Do you have time to talk now?","Time flies when you are having fun.","¿Tienes tiempo para hablar ahora?","El tiempo vuela cuando te estás divirtiendo."],
+            ["house","casa/hogar","/haʊs/","They are building a modern house.","Welcome to our humble house.","Ellos están construyendo una casa moderna.","Bienvenido a nuestra humilde casa."],
+            ["work","trabajar/trabajo","/wɜːrk/","I have a lot of work to complete.","She works at a software company.","Tengo mucho trabajo que completar.","Ella trabaja en una compañía de software."],
+            ["year","año","/jɪər/","This has been a very productive year.","We travel to Europe once a year.","Este ha sido un año muy productivo.","Viajamos a Europa una vez al año."],
+            ["good","bueno/buena","/ɡʊd/","Reading daily is a good habit.","Have a good flight to New York.","Leer a diario es un buen hábito.","Que tengas un buen vuelo a Nueva York."],
+            ["new","nuevo/nueva","/nuː/","I bought a brand new smartphone.","We need to find a new strategy.","Compré un teléfono inteligente completamente nuevo.","Necesitamos encontrar una nueva estrategia."],
+            ["day","día","/deɪ/","Today is a beautiful sunny day.","I practice guitar every single day.","Hoy es un hermoso día soleado.","Practico la guitarra cada uno de los días."],
+            ["man","hombre","/mæn/","He is a wise and honest man.","The man opened the door for us.","Él es un hombre sabio y honesto.","El hombre abrió la puerta por nosotros."],
+            ["world","mundo","/wɜːrld/","Technology is changing the world.","He wants to travel around the world.","La tecnología está cambiando al mundo.","Él quiere viajar alrededor del mundo."],
+            ["life","vida","/laɪf/","Art is a vital expression of life.","She lived a long and happy life.","El arte es una expresión vital de la vida.","Ella vivió una vida larga y feliz."],
+            ["hand","mano","/hænd/","Hold my hand while we cross.","He wrote the entire letter by hand.","Sostén mi mano mientras cruzamos.","Él escribió la carta entera a mano."],
+            ["part","parte","/pɑːrt/","This is the most exciting part.","Working hard is part of the process.","Esta es la parte más emocionante.","Trabajar duro es parte del proceso."],
+            ["child","niño/niña","/tʃaɪld/","The child is playing in the garden.","Every child deserves a good education.","El niño está jugando en el jardín.","Cada niño merece una buena educación."],
+            ["place","lugar","/pleɪs/","This looks like a peaceful place.","Find a safe place for your passport.","Este parece un lugar pacífico.","Encuentra un lugar seguro para tu pasaporte."],
+            ["week","semana","/wiːk/","I will finish this project next week.","We meet up once every week.","Terminaré este proyecto la próxima semana.","Nos reunimos una vez cada semana."]
+        ];
+
+        // Sistema de Estados Guardado en LocalStorage
+        let masteredState = {};
+        let filteredIndices = [];
+        let currentIndex = 0;
+
+        window.addEventListener('DOMContentLoaded', () => { initApp(); });
+
+        function initApp() {
+            // Cargar registro de palabras dominadas
+            const saved = localStorage.getItem('vocab_mastered_map');
+            if (saved) {
+                masteredState = JSON.parse(saved);
+            } else {
+                masteredState = {};
+                localStorage.setItem('vocab_mastered_map', JSON.stringify(masteredState));
+            }
+            applyFilters();
+        }
+
+        // Filtra los índices sobre la marcha sin duplicar objetos pesados en memoria
+        function applyFilters() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const level = document.getElementById('filter-level').value;
+            
+            filteredIndices = [];
+
+            for (let i = 0; i < 3000; i++) {
+                let base = coreDictionary[i % coreDictionary.length];
+                let iteration = Math.floor(i / coreDictionary.length) + 1;
+                let currentWord = iteration > 1 ? `${base[0]} [${iteration}]` : base[0];
+                let currentTranslation = base[1];
+                
+                // Determinar nivel
+                let currentLevel = "Principiante";
+                if (i >= 1000 && i < 2000) currentLevel = "Intermedio";
+                if (i >= 2000) currentLevel = "Avanzado";
+
+                const matchSearch = currentWord.toLowerCase().includes(search) || currentTranslation.toLowerCase().includes(search);
+                const matchLevel = (level === 'all') || (currentLevel === level);
+
+                if (matchSearch && matchLevel) {
+                    filteredIndices.push(i);
+                }
+            }
+
+            currentIndex = 0;
+            updateUI();
+        }
+
+        // Genera y dibuja la tarjeta activa en tiempo real
+        function updateUI() {
+            document.getElementById('flashcard').classList.remove('flipped');
+            
+            // Calcular progreso real exacto
+            const totalMastered = Object.keys(masteredState).filter(k => masteredState[k] === true).length;
+            const percentage = Math.round((totalMastered / 3000) * 100);
+            
+            document.getElementById('numeric-progress').innerText = `${totalMastered} / 3000`;
+            document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
+            document.getElementById('percentage-text').innerText = `Progreso Real: ${percentage}%`;
+
+            if (filteredIndices.length === 0) {
+                document.getElementById('card-word').innerText = "Sin resultados";
+                document.getElementById('card-translation').innerText = "No se encontraron palabras";
+                return;
+            }
+
+            // Obtener el índice absoluto de la palabra actual
+            const absoluteIndex = filteredIndices[currentIndex];
+            const base = coreDictionary[absoluteIndex % coreDictionary.length];
+            const iteration = Math.floor(absoluteIndex / coreDictionary.length) + 1;
+
+            // Datos procesados bajo demanda
+            let currentLevel = "Principiante";
+            if (absoluteIndex >= 1000 && absoluteIndex < 2000) currentLevel = "Intermedio";
+            if (absoluteIndex >= 2000) currentLevel = "Avanzado";
+
+            let wordName = iteration > 1 ? `${base[0]} [V.${iteration}]` : base[0];
+
+            // Inyectar textos al frente (Inglés)
+            document.getElementById('card-level-front').innerText = currentLevel;
+            document.getElementById('card-word').innerText = wordName;
+            document.getElementById('card-ipa').innerText = base[2];
+            document.getElementById('card-ex1-en').innerText = `"${base[3]}"`;
+            document.getElementById('card-ex2-en').innerText = `"${base[4]}"`;
+
+            // Inyectar textos al reverso (Español)
+            document.getElementById('card-translation').innerText = base[1];
+            document.getElementById('card-ex1-es').innerText = `"${base[5]}"`;
+            document.getElementById('card-ex2-es').innerText = `"${base[6]}"`;
+
+            // Configurar Imagen Alusiva con color aleatorio dinámico
+            const container = document.getElementById('svg-graphic-container');
+            container.innerHTML = svgIcons[absoluteIndex % svgIcons.length];
+            const randomColorIndex = Math.floor((absoluteIndex * 7) % bgColors.length); // Semilla pseudoaleatoria fija por tarjeta
+            container.style.backgroundColor = bgColors[randomColorIndex];
+            container.querySelector('svg').style.fill = fillColors[randomColorIndex];
+
+            // Validar Estado Dominado
+            const btn = document.getElementById('mastered-btn');
+            if (masteredState[absoluteIndex]) {
+                btn.innerText = "Dominada 🟢";
+                btn.className = "status-btn mastered";
+            } else {
+                btn.innerText = "Por aprender 🔴";
+                btn.className = "status-btn";
+            }
+
+            document.getElementById('card-index-indicator').innerText = `${currentIndex + 1} / ${filteredIndices.length}`;
+        }
+
+        function toggleFlip() { document.getElementById('flashcard').classList.toggle('flipped'); }
+        function nextCard() { if (filteredIndices.length === 0) return; currentIndex = (currentIndex + 1) % filteredIndices.length; updateUI(); }
+        function prevCard() { if (filteredWords.length === 0) return; currentIndex = (currentIndex - 1 + filteredIndices.length) % filteredIndices.length; updateUI(); }
+
+        function toggleMastered() {
+            const absoluteIndex = filteredIndices[currentIndex];
+            masteredState[absoluteIndex] = !masteredState[absoluteIndex];
+            localStorage.setItem('vocab_mastered_map', JSON.stringify(masteredState));
+            updateUI();
+        }
+
+        function resetApp() {
+            if (confirm("¿Deseas reiniciar tu progreso real al 0%?")) {
+                masteredState = {};
+                localStorage.setItem('vocab_mastered_map', JSON.stringify(masteredState));
+                applyFilters();
+            }
+        }
+    </script>
+</body>
+</html>
