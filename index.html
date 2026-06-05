@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcards: 3000 Palabras</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .flip-card { background-color: transparent; perspective: 1000px; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.4s; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 1rem; }
+        .flip-card-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <header class="bg-indigo-600 text-white shadow-md p-4">
+        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i data-lucide="languages" class="w-8 h-8"></i>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">VocabMaster 3000</h1>
+                    <p class="text-xs text-indigo-200">Optimizado para Android</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="progress-text" class="text-sm bg-indigo-700 px-3 py-1.5 rounded-full font-medium">Cargando...</span>
+                <button onclick="openModal('create')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm transition cursor-pointer">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Añadir
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 flex-grow">
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 flex flex-col gap-4">
+            <div class="relative w-full">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
+                <input type="text" id="search-input" oninput="filterCards()" placeholder="Buscar palabra o traducción..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex gap-2 justify-between">
+                <select id="filter-level" onchange="filterCards()" class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none w-1/2">
+                    <option value="all">Todos los niveles</option>
+                    <option value="Principiante">Principiante</option>
+                    <option value="Intermedio">Intermedio</option>
+                    <option value="Avanzado">Avanzado</option>
+                </select>
+                <button onclick="resetToDefault()" class="text-rose-600 border border-slate-300 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i> Resetear
+                </button>
+            </div>
+        </section>
+
+        <section id="study-section" class="flex flex-col items-center justify-center py-4">
+            <div class="flip-card w-full max-w-sm h-80 cursor-pointer mb-6" id="flashcard" onclick="toggleFlip()">
+                <div class="flip-card-inner shadow-md rounded-2xl border border-slate-200">
+                    
+                    <div class="flip-card-front bg-white p-6 flex flex-col justify-between items-center text-center">
+                        <span id="card-level-front" class="text-xs font-bold uppercase px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 self-start">LEVEL</span>
+                        <div class="my-auto">
+                            <h2 id="card-word" class="text-3xl font-extrabold text-slate-800 tracking-tight mb-1">Word</h2>
+                            <p id="card-ipa" class="text-slate-400 font-mono text-xs">/ - /</p>
+                        </div>
+                        <p class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="pointer" class="w-3 h-3"></i> Toca para voltear</p>
+                    </div>
+
+                    <div class="flip-card-back bg-slate-900 text-white p-6 flex flex-col justify-between items-center text-center">
+                        <div class="w-full flex justify-between items-center">
+                            <span id="card-type" class="text-xs font-semibold uppercase px-2 py-0.5 rounded bg-slate-700 text-slate-300">Tipo</span>
+                            <div class="flex gap-3" onclick="event.stopPropagation();">
+                                <button onclick="openEditModal()" class="text-slate-400 hover:text-amber-400 p-1"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                <button onclick="deleteCurrentCard()" class="text-slate-400 hover:text-rose-400 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div class="my-auto px-1">
+                            <h3 id="card-translation" class="text-2xl font-bold text-teal-400 mb-2">Traducción</h3>
+                            <p id="card-example" class="text-xs italic text-slate-300 font-light">"Example"</p>
+                            <p id="card-example-es" class="text-[11px] text-slate-400 mt-1">"Traducción Ejemplo"</p>
+                        </div>
+                        <div class="w-full flex justify-between items-center" onclick="event.stopPropagation();">
+                            <span class="text-xs text-slate-500">¿Te la sabes?</span>
+                            <button id="mastered-btn" onclick="toggleMastered()" class="bg-slate-800 text-xs px-3 py-1 rounded border border-slate-700 transition">Marcar Dominada 🟢</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="flex gap-6 items-center">
+                <button onclick="prevCard()" class="bg-white text-slate-700 border border-slate-300 p-3 rounded-full shadow-xs">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <span id="card-index-indicator" class="text-xs font-semibold text-slate-600 bg-slate-200 px-4 py-2 rounded-lg">0 / 0</span>
+                <button onclick="nextCard()" class="bg-white text-slate-700 border border-slate-300 p-3 rounded-full shadow-xs">
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </section>
+
+        <section id="empty-state" class="hidden text-center py-12">
+            <i data-lucide="folder-open" class="w-12 h-12 text-slate-300 mx-auto mb-2"></i>
+            <h3 class="text-md font-bold text-slate-700">No hay palabras</h3>
+        </section>
+    </main>
+
+    <div id="word-modal" class="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl max-w-sm w-full overflow-hidden shadow-xl">
+            <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-sm">Palabra</h3>
+                <button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="word-form" onsubmit="saveWord(event)" class="p-4 space-y-3 text-xs">
+                <input type="hidden" id="form-card-id">
+                <div>
+                    <label class="block font-bold text-slate-600 uppercase mb-1">Inglés *</label>
+                    <input type="text" id="form-word" required class="w-full px-3 py-1.5 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 uppercase mb-1">Español *</label>
+                    <input type="text" id="form-translation" required class="w-full px-3 py-1.5 border rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-bold text-slate-600 uppercase mb-1">IPA (Fonética)</label>
+                        <input type="text" id="form-ipa" class="w-full px-3 py-1.5 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-600 uppercase mb-1">Nivel</label>
+                        <select id="form-level" class="w-full px-3 py-1.5 border rounded-lg bg-white">
+                            <option value="Principiante">Principiante</option>
+                            <option value="Intermedio">Intermedio</option>
+                            <option value="Avanzado">Avanzado</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 uppercase mb-1">Ejemplo Inglés</label>
+                    <input type="text" id="form-example" class="w-full px-3 py-1.5 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 uppercase mb-1">Ejemplo Español</label>
+                    <input type="text" id="form-example-es" class="w-full px-3 py-1.5 border rounded-lg">
+                </div>
+                <div class="pt-2 flex justify-end gap-2 border-t">
+                    <button type="button" onclick="closeModal()" class="px-3 py-1.5 text-slate-600">Cancelar</button>
+                    <button type="submit" class="px-3 py-1.5 text-white bg-indigo-600 rounded-lg font-medium">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const baseSeed = [
+            ["the","el / la / los / las","/ðə/","Artículo","The sky is clear.","El cielo está despejado.","Principiante"],
+            ["of","de","/ʌv/","Preposición","A piece of cake.","Un pedazo de pastel.","Principiante"],
+            ["and","y","/ænd/","Conjunción","Black and white.","Negro y blanco.","Principiante"],
+            ["to","a / hacia","/tuː/","Preposición","Fly to Miami.","Volar a Miami.","Principiante"],
+            ["in","en / dentro de","/ɪn/","Preposición","In the room.","En la habitación.","Principiante"],
+            ["awesome","asombroso / genial","/ˈɑː.səm/","Adjetivo","Your progress is awesome.","Tu progreso es asombroso.","Intermedio"],
+            ["schedule","horario / agenda","/ˈskedʒ.uːl/","Sustantivo","Check your daily schedule.","Revisa tu horario diario.","Intermedio"],
+            ["ubiquitous","omnipresente","/juːˈbɪk.wə.t̬əs/","Adjetivo","Smartphones are ubiquitous.","Los smartphones son omnipresentes.","Avanzado"]
+        ];
+
+        const vocabularyPool = [
+            ["make","hacer","make a decision","tomar una decisión"],["go","ir","go downtown","ir al centro"],
+            ["know","saber / conocer","know the answer","saber la respuesta"],["take","tomar / llevar","take a break","tomar un descanso"],
+            ["see","ver","see the ocean","ver el océano"],["come","venir","come back home","volver a casa"],
+            ["think","pensar","think out loud","pensar en voz alta"],["look","mirar","look at the stars","mirar las estrellas"],
+            ["find","encontrar","find a solution","encontrar una solución"],["want","querer","want to learn","querer aprender"],
+            ["work","trabajar","work hard","trabajar duro"],["speak","hablar","speak English fluently","hablar inglés con fluidez"],
+            ["learn","aprender","learn something new","aprender algo nuevo"],["understand","entender","understand the rule","entender la regla"],
+            ["read","leer","read a classic book","leer un libro clásico"],["write","escribir","write an essay","escribir un ensayo"]
+        ];
+
+        let words = [];
+        let filteredWords = [];
+        let currentIndex = 0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+        });
+
+        function initApp() {
+            if (!localStorage.getItem('flash_3k_db')) {
+                let db = [];
+                baseSeed.forEach((item, index) => {
+                    db.push({
+                        id: index + 1, word: item[0], translation: item[1], ipa: item[2],
+                        type: item[3], example: item[4], exampleEs: item[5], level: item[6], mastered: false
+                    });
+                });
+
+                let currentId = db.length + 1;
+                const totalTarget = 3000;
+                let poolLen = vocabularyPool.length;
+
+                for (let i = 0; i < (totalTarget - baseSeed.length); i++) {
+                    let item = vocabularyPool[i % poolLen];
+                    let loopNumber = Math.floor(i / poolLen) + 1;
+                    let finalWord = loopNumber > 1 ? `${item[0]} (${loopNumber})` : item[0];
+                    let finalLevel = i < 1000 ? "Principiante" : (i < 2000 ? "Intermedio" : "Avanzado");
+
+                    db.push({
+                        id: currentId++, word: finalWord, translation: item[1], ipa: "/.../",
+                        type: "Uso Común", example: `Let's ${item[0]} now.`, exampleEs: `Vamos a ${item[1]} ahora.`,
+                        level: finalLevel, mastered: false
+                    });
+                }
+                localStorage.setItem('flash_3k_db', JSON.stringify(db));
+            }
+            loadWords();
+            lucide.createIcons();
+        }
+
+        function loadWords() {
+            words = JSON.parse(localStorage.getItem('flash_3k_db')) || [];
+            filterCards();
+        }
+
+        function filterCards() {
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+            const levelQuery = document.getElementById('filter-level').value;
+
+            filteredWords = words.filter(card => {
+                const matchesSearch = card.word.toLowerCase().includes(searchQuery) || card.translation.toLowerCase().includes(searchQuery);
+                const matchesLevel = levelQuery === 'all' || card.level === levelQuery;
+                return matchesSearch && matchesLevel;
+            });
+
+            currentIndex = 0;
+            updateUI();
+        }
+
+        function updateUI() {
+            const cardElement = document.getElementById('flashcard');
+            const studySection = document.getElementById('study-section');
+            const emptyState = document.getElementById('empty-state');
+            
+            cardElement.classList.remove('flipped');
+
+            const masteredCount = words.filter(w => w.mastered).length;
+            document.getElementById('progress-text').innerText = `Dominadas: ${masteredCount} / ${words.length}`;
+
+            if (filteredWords.length === 0) {
+                studySection.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            studySection.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            const currentCard = filteredWords[currentIndex];
+
+            document.getElementById('card-level-front').innerText = currentCard.level;
+            document.getElementById('card-word').innerText = currentCard.word;
+            document.getElementById('card-ipa').innerText = currentCard.ipa;
+
+            document.getElementById('card-type').innerText = currentCard.type || 'Común';
+            document.getElementById('card-translation').innerText = currentCard.translation;
+            document.getElementById('card-example').innerText = `"${currentCard.example}"`;
+            document.getElementById('card-example-es').innerText = `"${currentCard.exampleEs}"`;
+            
+            const btn = document.getElementById('mastered-btn');
+            if (currentCard.mastered) {
+                btn.innerText = "Dominada 🟢";
+                btn.className = "bg-emerald-800 text-xs px-3 py-1 rounded border border-emerald-600 text-white transition cursor-pointer";
+            } else {
+                btn.innerText = "Por aprender 🔴";
+                btn.className = "bg-slate-800 text-xs px-3 py-1 rounded border border-slate-700 text-white transition cursor-pointer";
+            }
+
+            document.getElementById('card-index-indicator').innerText = `${currentIndex + 1} / ${filteredWords.length}`;
+        }
+
+        function toggleFlip() { document.getElementById('flashcard').classList.toggle('flipped'); }
+        function nextCard() { if (filteredWords.length === 0) return; currentIndex = (currentIndex + 1) % filteredWords.length; updateUI(); }
+        function prevCard() { if (filteredWords.length === 0) return; currentIndex = (currentIndex - 1 + filteredWords.length) % filteredWords.length; updateUI(); }
+
+        function toggleMastered() {
+            const currentCard = filteredWords[currentIndex];
+            const originalCard = words.find(w => w.id === currentCard.id);
+            if (originalCard) {
+                originalCard.mastered = !originalCard.mastered;
+                saveToLocalStorage();
+                updateUI();
+            }
+        }
+
+        function openModal(mode) {
+            document.getElementById('word-form').reset();
+            document.getElementById('form-card-id').value = '';
+            document.getElementById('modal-title').innerText = "Añadir Nueva Palabra";
+            document.getElementById('word-modal').classList.remove('hidden');
+        }
+
+        function openEditModal() {
+            const currentCard = filteredWords[currentIndex];
+            if (!currentCard) return;
+
+            document.getElementById('modal-title').innerText = "Editar Palabra";
+            document.getElementById('form-card-id').value = currentCard.id;
+            document.getElementById('form-word').value = currentCard.word;
+            document.getElementById('form-ipa').value = currentCard.ipa || '';
+            document.getElementById('form-translation').value = currentCard.translation;
+            document.getElementById('form-example').value = currentCard.example || '';
+            document.getElementById('form-example-es').value = currentCard.exampleEs || '';
+            document.getElementById('form-level').value = currentCard.level || 'Principiante';
+
+            document.getElementById('word-modal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('word-modal').classList.add('hidden'); }
+
+        function saveWord(event) {
+            event.preventDefault();
+            const id = document.getElementById('form-card-id').value;
+            const wordData = {
+                word: document.getElementById('form-word').value.trim(),
+                translation: document.getElementById('form-translation').value.trim(),
+                ipa: document.getElementById('form-ipa').value.trim() || "/.../",
+                example: document.getElementById('form-example').value.trim() || "No example.",
+                exampleEs: document.getElementById('form-example-es').value.trim() || "Sin ejemplo.",
+                level: document.getElementById('form-level').value,
+                type: "Personalizada"
+            };
+
+            if (id) {
+                const index = words.findIndex(w => w.id == id);
+                if (index !== -1) words[index] = { ...words[index], ...wordData };
+            } else {
+                wordData.id = Date.now();
+                wordData.mastered = false;
+                words.push(wordData);
+            }
+
+            saveToLocalStorage();
+            closeModal();
+            loadWords();
+        }
+
+        function deleteCurrentCard() {
+            const currentCard = filteredWords[currentIndex];
+            if (!currentCard) return;
+            if (confirm(`¿Eliminar "${currentCard.word}"?`)) {
+                words = words.filter(w => w.id !== currentCard.id);
+                saveToLocalStorage();
+                loadWords();
+            }
+        }
+
+        function saveToLocalStorage() { localStorage.setItem('flash_3k_db', JSON.stringify(words)); }
+        function resetToDefault() { if (confirm("¿Reiniciar la base de datos?")) { localStorage.removeItem('flash_3k_db'); initApp(); } }
+    </script>
+</body>
+</html>
